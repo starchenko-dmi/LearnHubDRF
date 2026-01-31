@@ -14,6 +14,17 @@ class UserSerializer(serializers.ModelSerializer):
         user = User.objects.create_user(**validated_data)
         return user
 
+class UserProfileSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = User
+        fields = ['email', 'phone', 'city', 'avatar']
+
+# Для публичного просмотра чужого профиля
+class UserPublicSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = User
+        fields = ['id', 'email', 'city']  # только общая информация
+
 class PaymentSerializer(serializers.ModelSerializer):
     class Meta:
         model = Payment
