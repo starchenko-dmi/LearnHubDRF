@@ -35,6 +35,8 @@ class User(AbstractUser):
     phone = models.CharField(max_length=20, blank=True, null=True, verbose_name='Телефон')
     city = models.CharField(max_length=100, blank=True, null=True, verbose_name='Город')
     avatar = models.ImageField(upload_to='avatars/', blank=True, null=True, verbose_name='Аватар')
+    stripe_session_id = models.CharField(max_length=255, blank=True, null=True, verbose_name='ID сессии Stripe')
+    stripe_payment_url = models.URLField(blank=True, null=True, verbose_name='Ссылка на оплату')
 
     objects = UserManager()  # ← ОБЯЗАТЕЛЬНО!
 
@@ -58,6 +60,15 @@ class Payment(models.Model):
         verbose_name='Пользователь'
     )
     payment_date = models.DateTimeField(auto_now_add=True, verbose_name='Дата оплаты')
+    stripe_session_id = models.CharField(
+        max_length=255, blank=True, null=True, verbose_name='ID сессии Stripe'
+    )
+    stripe_payment_url = models.URLField(
+        max_length=500,
+        blank=True,
+        null=True,
+        verbose_name='Ссылка на оплату'
+    )
     course = models.ForeignKey(
         Course,
         on_delete=models.CASCADE,
