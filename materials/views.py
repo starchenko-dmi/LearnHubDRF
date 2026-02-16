@@ -1,12 +1,18 @@
+import stripe
 from rest_framework import viewsets, generics, permissions
 
 from .paginators import MaterialsPagination
 from .serializers import CourseSerializer, LessonSerializer
 from users.permissions import IsModerator
-from rest_framework.views import APIView
-from rest_framework.response import Response
+
 from django.shortcuts import get_object_or_404
 from .models import Course, Subscription, Lesson
+from rest_framework.views import APIView
+from rest_framework.response import Response
+from rest_framework.permissions import IsAuthenticated
+from .services.stripe_service import create_stripe_product, create_stripe_price, create_stripe_checkout_session
+from users.models import Payment
+
 
 
 class IsOwner(permissions.BasePermission):
@@ -98,3 +104,49 @@ class SubscriptionView(APIView):
             message = "подписка добавлена"
 
         return Response({"message": message})
+
+
+class CoursePaymentView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def post(self, request, course_id):
+        course = Course.objects.get(id=course_id)
+        user = request.user
+
+        # 1. Создаём продукт
+        product = create_stripe_product(course.title, course.description)
+
+        # 2. Создаём цену
+        price = create_stripe_price(product['id'], int(course.price))  # предполагается, что у Course есть поле price
+
+        # 3. Создаём сессию
+        success_url = "http://127.0.0.1:8000/payment/success/"
+        cancel_url = "http://127.0.0.1:8000/payment/cancel/"
+        session = create_stripe_checkout_session(price['id'], success_url, cancel_url)
+
+        # 4. Сохраняем в БД
+        payment = Payment.objects.create(
+            user=user,
+            course=course,
+            amount=course.price,
+            payment_method='transfer',
+            stripe_session_id=session['id'],
+            stripe_payment_url=session['url']
+        )
+
+        return Response({
+            "message": "Переходите к оплате",
+            "payment_url": session['url'],
+            "session_id": session['id']
+        })
+
+
+class PaymentStatusView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request, session_id):
+        session = stripe.checkout.Session.retrieve(session_id)
+        return Response({
+            "status": session["payment_status"],
+            "session": session
+        })
