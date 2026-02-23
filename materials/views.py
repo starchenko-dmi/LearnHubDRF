@@ -13,6 +13,12 @@ from rest_framework.permissions import IsAuthenticated
 from .services.stripe_service import create_stripe_product, create_stripe_price, create_stripe_checkout_session
 from users.models import Payment
 
+from users.tasks import send_course_update_notification
+from django.utils import timezone
+from datetime import timedelta
+
+
+
 
 
 class IsOwner(permissions.BasePermission):
@@ -47,6 +53,18 @@ class CourseViewSet(viewsets.ModelViewSet):
         else:
             permission_classes = [permissions.IsAuthenticated]
         return [permission() for permission in permission_classes]
+
+    def perform_update(self, serializer):
+        course = serializer.save()
+
+        # Доп. задание: отправлять только если прошло >4 часов с последнего обновления
+        if not course.last_updated or (timezone.now() - course.last_updated) > timedelta(hours=4):
+            # Обновляем метку времени
+            course.last_updated = timezone.now()
+            course.save(update_fields=['last_updated'])
+
+            # Запускаем асинхронную рассылку
+            send_course_update_notification.delay(course.id, course.title)
 
 class LessonListCreateView(generics.ListCreateAPIView):
     pagination_class = MaterialsPagination
