@@ -1,8 +1,6 @@
-from django.test import TestCase
 from django.contrib.auth.models import Group
 from .models import Course, Lesson, Subscription
 
-import stripe
 from unittest.mock import patch, MagicMock
 
 from django.contrib.auth import get_user_model
@@ -81,8 +79,6 @@ class SubscriptionTests(APITestCase):
         self.assertFalse(Subscription.objects.filter(user=self.user, course=self.course).exists())
 
 
-User = get_user_model()
-
 class StripePaymentTests(APITestCase):
     def setUp(self):
         self.user = User.objects.create_user(email='user@test.com', password='pass123')
@@ -138,3 +134,50 @@ class StripePaymentTests(APITestCase):
         self.assertEqual(response.status_code, status.HTTP_200_OK)
         self.assertEqual(response.data['status'], 'paid')
         mock_session_retrieve.assert_called_once_with('cs_test_abc')
+
+
+User = get_user_model()
+
+class CourseUpdateNotificationTest(APITestCase):
+    """Тест: при обновлении курса → запускается задача рассылки"""
+
+    def setUp(self):
+        self.user = User.objects.create_user(email='owner@example.com', password='pass123')
+        self.subscriber = User.objects.create_user(email='subscriber@example.com', password='pass123')
+        self.course = Course.objects.create(
+            title='Тестовый курс',
+            description='Описание',
+            owner=self.user,
+            price=1000.00
+        )
+        Subscription.objects.create(user=self.subscriber, course=self.course)
+
+    @patch('materials.views.send_course_update_notification')
+    def test_course_update_triggers_email_task(self, mock_task):
+        self.client.force_authenticate(user=self.user)
+
+        # Обновляем курс
+        response = self.client.patch(
+            f'/api/courses/{self.course.id}/',
+            {'title': 'Обновлённый курс'},
+            format='json'
+        )
+
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        mock_task.delay.assert_called_once_with(self.course.id, 'Обновлённый курс')
+
+    @patch('materials.views.send_course_update_notification')
+    def test_no_email_if_updated_within_4_hours(self, mock_task):
+        from django.utils import timezone
+        self.course.last_updated = timezone.now()
+        self.course.save()
+
+        self.client.force_authenticate(user=self.user)
+        self.client.patch(
+            f'/api/courses/{self.course.id}/',
+            {'description': 'Новое описание'},
+            format='json'
+        )
+
+        # Рассылка НЕ должна быть вызвана
+        mock_task.delay.assert_not_called()

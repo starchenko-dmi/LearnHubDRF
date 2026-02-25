@@ -15,6 +15,7 @@ class Course(models.Model):
         verbose_name='Владелец'
     )
     created_at = models.DateTimeField(default=timezone.now)
+    last_updated = models.DateTimeField(null=True, blank=True, verbose_name='Последнее обновление')
 
     def __str__(self):
         return self.title
