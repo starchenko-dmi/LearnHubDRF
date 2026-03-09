@@ -207,3 +207,16 @@ marimo/_lsp/
 __marimo__/
 
 database.ini
+
+# Окружение
+.venv/
+
+# Python
+*.pyc
+*.pyo
+
+.vscode/
+
+# Docker
+celerybeat-schedule*
+!celerybeat-schedule
