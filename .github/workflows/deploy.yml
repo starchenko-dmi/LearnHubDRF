@@ -9,25 +9,6 @@ on:
 jobs:
   test:
     runs-on: ubuntu-latest
-    services:
-      postgres:
-        image: postgres:15
-        env:
-          POSTGRES_DB: test_learnhub
-          POSTGRES_USER: test_user
-          POSTGRES_PASSWORD: test_pass
-        ports:
-          - 5432:5432
-        options: >-
-          --health-cmd pg_isready
-          --health-interval 10s
-          --health-timeout 5s
-          --health-retries 5
-      redis:
-        image: redis:7-alpine
-        ports:
-          - 6379:6379
-
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
@@ -45,19 +26,22 @@ jobs:
       - name: Run tests
         env:
           SECRET_KEY: fake-secret-key-for-tests
-          DEBUG: 'False'
-          DATABASE_URL: postgresql://test_user:test_pass@localhost:5432/test_learnhub
-          CELERY_BROKER_URL: redis://localhost:6379/0
-          CELERY_RESULT_BACKEND: redis://localhost:6379/0
+          DEBUG: 'True'
+          DATABASE_URL: sqlite:///test_db.sqlite3
+          CELERY_TASK_ALWAYS_EAGER: 'True'
+          CELERY_TASK_EAGER_PROPAGATES: 'True'
+          CELERY_BROKER_URL: memory://
+          STRIPE_SECRET_KEY: fake_test_key
+          STRIPE_PUBLIC_KEY: fake_test_key
         run: |
           python manage.py test
 
   deploy:
     needs: test
+    if: success() && github.event_name == 'push'
     runs-on: ubuntu-latest
-    if: success()
     steps:
-      - name: Deploy to remote server via SSH
+      - name: Deploy to server
         uses: appleboy/ssh-action@v1.0.3
         with:
           host: ${{ secrets.HOST }}
@@ -66,5 +50,5 @@ jobs:
           script: |
             cd /home/star-dim/learnhub
             git pull origin develop
-            docker-compose down
-            docker-compose up -d --build
+            docker compose down
+            docker compose up -d --build

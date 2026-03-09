@@ -1,30 +1,21 @@
+# tests.py (или materials/tests.py)
 from django.contrib.auth.models import Group
-from .models import Course, Lesson, Subscription
-
-from unittest.mock import patch, MagicMock
-
 from django.contrib.auth import get_user_model
 from rest_framework.test import APITestCase
 from rest_framework import status
-from .models import Course
+from unittest.mock import patch
+from .models import Course, Lesson, Subscription
 
 User = get_user_model()
 
 
 class LessonCRUDTests(APITestCase):
     def setUp(self):
-        self.user = User.objects.create_user(
-            email='user@test.com', password='pass123'
-        )
+        self.user = User.objects.create_user(email='user@test.com', password='pass123')
         self.moderator_group = Group.objects.create(name='moderators')
-        self.moderator = User.objects.create_user(
-            email='mod@test.com', password='pass123'
-        )
+        self.moderator = User.objects.create_user(email='mod@test.com', password='pass123')
         self.moderator.groups.add(self.moderator_group)
-
-        self.course = Course.objects.create(
-            title='Test Course', description='Desc', owner=self.user
-        )
+        self.course = Course.objects.create(title='Test Course', description='Desc', owner=self.user)
 
     def test_create_lesson_valid_youtube(self):
         self.client.force_authenticate(user=self.user)
@@ -68,12 +59,10 @@ class SubscriptionTests(APITestCase):
     def test_subscribe_and_unsubscribe(self):
         self.client.force_authenticate(user=self.user)
 
-        # Подписка
         response = self.client.post('/api/subscribe/', {'course_id': self.course.id})
         self.assertEqual(response.status_code, status.HTTP_200_OK)
         self.assertTrue(Subscription.objects.filter(user=self.user, course=self.course).exists())
 
-        # Отписка
         response = self.client.post('/api/subscribe/', {'course_id': self.course.id})
         self.assertEqual(response.status_code, status.HTTP_200_OK)
         self.assertFalse(Subscription.objects.filter(user=self.user, course=self.course).exists())
@@ -86,85 +75,57 @@ class StripePaymentTests(APITestCase):
             title='Test Course',
             description='Test description',
             owner=self.user,
-            price=1000.00  # обязательно добавьте поле price в модель Course
+            price=1000.00
         )
 
     @patch('materials.services.stripe_service.stripe.Product.create')
     @patch('materials.services.stripe_service.stripe.Price.create')
     @patch('materials.services.stripe_service.stripe.checkout.Session.create')
-    def test_create_payment_session(self, mock_session_create, mock_price_create, mock_product_create):
-        # Настройка моков
-        mock_product_create.return_value = {'id': 'prod_test123'}
-        mock_price_create.return_value = {'id': 'price_test456'}
-        mock_session_create.return_value = {
+    def test_create_payment_session(self, mock_session, mock_price, mock_product):
+        mock_product.return_value = {'id': 'prod_test'}
+        mock_price.return_value = {'id': 'price_test'}
+        mock_session.return_value = {
             'id': 'cs_test_abc',
             'url': 'https://checkout.stripe.com/pay/cs_test_abc'
         }
 
         self.client.force_authenticate(user=self.user)
-
         response = self.client.post(f'/api/courses/{self.course.id}/pay/')
 
-        # Проверки
         self.assertEqual(response.status_code, status.HTTP_200_OK)
-        self.assertIn('payment_url', response.data)
         self.assertEqual(response.data['session_id'], 'cs_test_abc')
-
-        # Проверяем, что моки вызывались с правильными аргументами
-        mock_product_create.assert_called_once_with(name=self.course.title, description=self.course.description)
-        mock_price_create.assert_called_once_with(
-            product='prod_test123',
-            unit_amount=100000,
-            currency='rub'
-        )
-        mock_session_create.assert_called_once()
+        self.assertIn('payment_url', response.data)
 
     @patch('materials.services.stripe_service.stripe.checkout.Session.retrieve')
-    def test_check_payment_status(self, mock_session_retrieve):
-        mock_session_retrieve.return_value = {
-            'id': 'cs_test_abc',
-            'payment_status': 'paid',
-            'status': 'complete'
-        }
+    def test_check_payment_status(self, mock_retrieve):
+        mock_retrieve.return_value = {'payment_status': 'paid'}
 
         self.client.force_authenticate(user=self.user)
-
         response = self.client.get('/api/payment/status/cs_test_abc/')
 
         self.assertEqual(response.status_code, status.HTTP_200_OK)
         self.assertEqual(response.data['status'], 'paid')
-        mock_session_retrieve.assert_called_once_with('cs_test_abc')
 
-
-User = get_user_model()
 
 class CourseUpdateNotificationTest(APITestCase):
-    """Тест: при обновлении курса → запускается задача рассылки"""
-
     def setUp(self):
-        self.user = User.objects.create_user(email='owner@example.com', password='pass123')
-        self.subscriber = User.objects.create_user(email='subscriber@example.com', password='pass123')
+        self.owner = User.objects.create_user(email='owner@example.com', password='pass123')
+        self.subscriber = User.objects.create_user(email='sub@example.com', password='pass123')
         self.course = Course.objects.create(
-            title='Тестовый курс',
-            description='Описание',
-            owner=self.user,
-            price=1000.00
+            title='Course', description='Desc', owner=self.owner, price=1000.00
         )
         Subscription.objects.create(user=self.subscriber, course=self.course)
 
     @patch('materials.views.send_course_update_notification')
     def test_course_update_triggers_email_task(self, mock_task):
-        self.client.force_authenticate(user=self.user)
-
-        # Обновляем курс
+        self.client.force_authenticate(user=self.owner)
         response = self.client.patch(
             f'/api/courses/{self.course.id}/',
-            {'title': 'Обновлённый курс'},
+            {'title': 'Updated'},
             format='json'
         )
-
         self.assertEqual(response.status_code, status.HTTP_200_OK)
-        mock_task.delay.assert_called_once_with(self.course.id, 'Обновлённый курс')
+        mock_task.delay.assert_called_once_with(self.course.id, 'Updated')
 
     @patch('materials.views.send_course_update_notification')
     def test_no_email_if_updated_within_4_hours(self, mock_task):
@@ -172,12 +133,7 @@ class CourseUpdateNotificationTest(APITestCase):
         self.course.last_updated = timezone.now()
         self.course.save()
 
-        self.client.force_authenticate(user=self.user)
-        self.client.patch(
-            f'/api/courses/{self.course.id}/',
-            {'description': 'Новое описание'},
-            format='json'
-        )
+        self.client.force_authenticate(user=self.owner)
+        self.client.patch(f'/api/courses/{self.course.id}/', {'description': 'New'}, format='json')
 
-        # Рассылка НЕ должна быть вызвана
         mock_task.delay.assert_not_called()

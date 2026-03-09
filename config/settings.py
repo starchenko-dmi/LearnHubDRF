@@ -3,6 +3,7 @@ from pathlib import Path
 from datetime import timedelta
 from dotenv import load_dotenv
 from celery.schedules import crontab
+import environ
 
 load_dotenv()
 
@@ -20,6 +21,9 @@ SECRET_KEY = os.getenv('SECRET_KEY')
 DEBUG = os.getenv('DEBUG', 'True').lower() == 'true'
 ALLOWED_HOSTS = os.getenv('ALLOWED_HOSTS', '').split(',') if os.getenv('ALLOWED_HOSTS') else []
 
+
+env = environ.Env()
+DATABASES = {"default": env.db()}
 
 # Application definition
 
