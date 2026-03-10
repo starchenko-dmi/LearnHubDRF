@@ -12,6 +12,7 @@ colorama==0.4.6 ; python_version >= "3.13" and python_version < "4.0" and platfo
 coverage==7.13.4 ; python_version >= "3.13" and python_version < "4.0"
 cron-descriptor==2.0.6 ; python_version >= "3.13" and python_version < "4.0"
 django-celery-beat==2.8.1 ; python_version >= "3.13" and python_version < "4.0"
+django-environ==0.13.0 ; python_version >= "3.13" and python_version < "4"
 django-filter==25.2 ; python_version >= "3.13" and python_version < "4.0"
 django-timezone-field==7.2.1 ; python_version >= "3.13" and python_version < "4.0"
 django==5.2.11 ; python_version >= "3.13" and python_version < "4.0"
