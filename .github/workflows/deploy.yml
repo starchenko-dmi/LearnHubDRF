@@ -34,7 +34,17 @@ jobs:
     if: success() && github.event_name == 'push'
     runs-on: ubuntu-latest
     steps:
-      - name: Deploy to server
+      - name: Copy files to server
+        uses: appleboy/scp-action@v0.1.7
+        with:
+          host: ${{ secrets.HOST }}
+          username: ${{ secrets.USERNAME }}
+          key: ${{ secrets.SSH_KEY }}
+          source: "."
+          target: "/home/star-dim/learnhub"
+          strip_components: 1
+
+      - name: Deploy on server
         uses: appleboy/ssh-action@v1.0.3
         with:
           host: ${{ secrets.HOST }}
@@ -42,6 +52,5 @@ jobs:
           key: ${{ secrets.SSH_KEY }}
           script: |
             cd /home/star-dim/learnhub
-            git pull origin develop || exit 1
             docker compose down
             docker compose up -d --build
