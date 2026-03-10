@@ -25,16 +25,9 @@ jobs:
 
       - name: Run tests
         env:
-          SECRET_KEY: fake-secret-key-for-tests
+          SECRET_KEY: fake-secret-key
           DEBUG: 'True'
-          DATABASE_URL: sqlite:///test_db.sqlite3
-          CELERY_TASK_ALWAYS_EAGER: 'True'
-          CELERY_TASK_EAGER_PROPAGATES: 'True'
-          CELERY_BROKER_URL: memory://
-          STRIPE_SECRET_KEY: fake_test_key
-          STRIPE_PUBLIC_KEY: fake_test_key
-        run: |
-          python manage.py test
+        run: python manage.py test
 
   deploy:
     needs: test

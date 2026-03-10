@@ -4,6 +4,7 @@ from datetime import timedelta
 from dotenv import load_dotenv
 from celery.schedules import crontab
 import environ
+import sys
 
 load_dotenv()
 
@@ -20,10 +21,6 @@ SECRET_KEY = os.getenv('SECRET_KEY')
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = os.getenv('DEBUG', 'True').lower() == 'true'
 ALLOWED_HOSTS = os.getenv('ALLOWED_HOSTS', '').split(',') if os.getenv('ALLOWED_HOSTS') else []
-
-
-env = environ.Env()
-DATABASES = {"default": env.db()}
 
 # Application definition
 
@@ -78,16 +75,34 @@ WSGI_APPLICATION = 'config.wsgi.application'
 # https://docs.djangoproject.com/en/6.0/ref/settings/#databases
 
 
-DATABASES = {
-    'default': {
-        'ENGINE': 'django.db.backends.postgresql',
-        'NAME': os.getenv('POSTGRES_DB'),
-        'USER': os.getenv('POSTGRES_USER'),
-        'PASSWORD': os.getenv('POSTGRES_PASSWORD'),
-        'HOST': os.getenv('POSTGRES_HOST', 'db'),  # ← по умолчанию 'db'
-        'PORT': os.getenv('POSTGRES_PORT', '5432'),
+# Определяем, запущены ли тесты
+TESTING = 'test' in sys.argv
+
+if TESTING:
+    # Используем SQLite для тестов
+    DATABASES = {
+        'default': {
+            'ENGINE': 'django.db.backends.sqlite3',
+            'NAME': ':memory:',  # или 'test_db.sqlite3'
+        }
     }
-}
+    CELERY_TASK_ALWAYS_EAGER = True
+    CELERY_TASK_EAGER_PROPAGATES = True
+    CELERY_BROKER_URL = 'memory://'
+    STRIPE_SECRET_KEY = 'fake_test_key'
+    STRIPE_PUBLIC_KEY = 'fake_test_key'
+else:
+    # Используем PostgreSQL в продакшене и разработке
+    DATABASES = {
+        'default': {
+            'ENGINE': 'django.db.backends.postgresql',
+            'NAME': os.getenv('POSTGRES_DB', 'learnhub_db'),
+            'USER': os.getenv('POSTGRES_USER', 'learnhub_user'),
+            'PASSWORD': os.getenv('POSTGRES_PASSWORD', 'secure_password_123'),
+            'HOST': os.getenv('POSTGRES_HOST', 'db'),
+            'PORT': os.getenv('POSTGRES_PORT', '5432'),
+        }
+    }
 
 # Password validation
 # https://docs.djangoproject.com/en/6.0/ref/settings/#auth-password-validators
