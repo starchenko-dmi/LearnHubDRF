@@ -3,7 +3,6 @@ from pathlib import Path
 from datetime import timedelta
 from dotenv import load_dotenv
 from celery.schedules import crontab
-import environ
 import sys
 
 load_dotenv()
