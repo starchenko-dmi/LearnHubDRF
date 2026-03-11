@@ -43,6 +43,9 @@ jobs:
           source: "."
           target: "/home/star-dim/learnhub"
           strip_components: 1
+        env:
+          # Включаем строгую проверку ошибок
+          STRICT_HOST_CHECKING: true
 
       - name: Deploy on server
         uses: appleboy/ssh-action@v1.0.3
@@ -50,7 +53,15 @@ jobs:
           host: ${{ secrets.HOST }}
           username: ${{ secrets.USERNAME }}
           key: ${{ secrets.SSH_KEY }}
+          script_stop: true
           script: |
+            set -e
             cd /home/star-dim/learnhub
             docker compose down
             docker compose up -d --build
+            # Проверяем, что контейнер backend запущен
+            if ! docker compose ps --services --status running | grep -q backend; then
+              echo "❌ ERROR: backend container failed to start!"
+              exit 1
+            fi
+            echo "✅ Deployment successful"

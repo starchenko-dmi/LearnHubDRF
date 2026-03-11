@@ -1,120 +1,191 @@
-# Образовательная платформа на Django REST Framework
+# LearnHub — Образовательная платформа на Django REST Framework
 
 REST API для онлайн-платформы, где пользователи могут создавать, проходить курсы и оплачивать обучение. Проект реализован с использованием Django и Django REST Framework.
 
+
 ## Основные возможности
 
-Проект предоставляет полноценный REST API для образовательной платформы с поддержкой пользователей, курсов, уроков, платежей и подписок. Все операции защищены и соответствуют принципам безопасности.
+- Полноценный REST API с JWT-аутентификацией  
+- Управление пользователями по email (включая аватарки)  
+- CRUD для курсов и уроков с пагинацией (5 элементов на страницу)  
+- Валидация видео: разрешены только `youtube.com` и `youtu.be`  
+- Интеграция с Stripe: оплата курсов и отдельных уроков через безопасную Checkout-страницу  
+- Подписки на обновления курсов + email-уведомления (не чаще 1 раза в 4 часа)  
+- Гибкая система прав:  
+  - Обычные пользователи — работают только со своими материалами  
+  - Модераторы (`moderators`) — могут редактировать любые курсы/уроки (но не создавать/удалять)  
+- Админка для управления всеми сущностями  
+- Покрытие тестами: CRUD, права доступа, Stripe, Celery-задачи
 
-Регистрация и управление пользователями осуществляются по email. Аутентификация реализована через JWT-токены (получение и обновление). Пользователи могут загружать аватарки, а авторы — превью для курсов и уроков.
 
-Для курсов и уроков реализован полный CRUD: курсы управляются через ViewSet, уроки — через Generic-классы. При просмотре курса отображается список его уроков и их количество.
+## Технологии
 
-Система платежей поддерживает оплату как целого курса, так и отдельных уроков. Список платежей можно фильтровать и сортировать по дате, курсу, уроку или способу оплаты.
+- Python 3.13  
+- Django 5.2 + DRF  
+- PostgreSQL + Redis + Celery (с периодическими задачами)  
+- djangorestframework-simplejwt  
+- drf-yasg (Swagger UI)  
+- Stripe API  
+- Pillow (обработка изображений)  
+- coverage (анализ покрытия)
 
-Все ссылки на видео в уроках проходят валидацию: разрешены только домены youtube.com и youtu.be.
 
-Пользователи могут подписываться на обновления курсов. При обновлении курса всем подписчикам отправляется email-уведомление, но не чаще чем раз в 4 часа, чтобы избежать спама.
-
-Для удобства навигации реализована пагинация: списки курсов и уроков разбиты на страницы по 5 элементов.
-
-Гибкая система прав доступа:
-- Обычные пользователи могут видеть, редактировать и удалять только свои курсы и уроки.
-- Модераторы (пользователи в группе moderators) могут просматривать и редактировать любые материалы, но не могут создавать или удалять их.
-
-Профиль пользователя защищён: редактировать можно только свой профиль, а при просмотре чужого отображаются только публичные данные — email и город.
-
-Админка позволяет управлять всеми сущностями: пользователями, группами, курсами, уроками, платежами и подписками.
-
-Проект покрыт автоматическими тестами: проверяются CRUD-операции, права доступа, валидация YouTube, логика подписок, асинхронные задачи и интеграция с Stripe.
-
-## Новый функционал
-
-Добавлена интеграция с Stripe для приёма платежей. При запросе оплаты курса создаются продукт, цена и сессия в Stripe. Пользователь получает ссылку на безопасную страницу Stripe Checkout. Поддерживается проверка статуса платежа по ID сессии. Используются тестовые карты (например, 4242 4242 4242 4242), поэтому деньги не списываются.
-
-Реализованы асинхронные задачи через Celery и Redis:
-- При обновлении курса запускается задача отправки email-уведомлений всем подписчикам.
-- Ежедневно в 02:00 выполняется периодическая задача, которая блокирует пользователей (is_active = False), не заходивших в систему более 30 дней (на основе поля last_login).
-
-Умная логика уведомлений гарантирует, что письмо отправляется только если курс не обновлялся последние 4 часа.
-
-Тестирование нового функционала включает:
-- Юнит-тесты для Celery-задач с использованием моков.
-- Интеграционный тест Stripe, который создаёт реальную сессию в тестовом режиме и проверяет её статус.
-- Все тесты проходят без необходимости запускать Redis или Celery вручную.
-
-## Структура проекта
-
-Проект состоит из двух основных приложений:
-
-Приложение users отвечает за управление пользователями и платежами. Включает кастомную модель User с авторизацией по email, а также модель Payment, которая хранит информацию о платежах, включая данные Stripe (stripe_session_id, stripe_payment_url). Здесь же реализованы Celery-задачи: send_course_update_notification и deactivate_inactive_users.
-
-Приложение materials содержит учебные материалы. Модель Course включает название, описание, превью, владельца, цену и дату последнего обновления. Модель Lesson содержит аналогичные поля, ссылку на видео (с валидацией YouTube) и привязку к курсу. Модель Subscription связывает пользователя и курс для управления подписками. Также здесь находятся валидатор validate_youtube_url и пагинатор MaterialsPagination.
-
-## Запуск через Docker Compose
-
-Проект полностью готов к развёртыванию в Docker-окружении. Все сервисы — бэкенд, PostgreSQL, Redis, Celery Worker и Celery Beat — запускаются одной командой.
+## Локальный запуск (Docker Compose)
 
 ### Требования
-
-- Docker
-- Docker Compose
+- Docker  
+- Docker Compose  
 
 ### Шаги
-
-1. Склонируйте репозиторий:
-   ```bash
-   git clone <ваш-репозиторий>
-   cd LearnHubDRF
-   
-Создайте файл .env из шаблона:
+git clone https://github.com/starchenko-dmi/LearnHubDRF.git
+cd LearnHubDRF
 cp .env.example .env
 
-Откройте .env и укажите свои значения:
-
-SECRET_KEY — секретный ключ Django
-STRIPE_SECRET_KEY, STRIPE_PUBLIC_KEY — тестовые ключи Stripe
-EMAIL_HOST_USER, EMAIL_HOST_PASSWORD — данные для отправки email
-
-Остальные переменные можно оставить по умолчанию
-Соберите и запустите контейнеры:
-docker-compose up --build
-
-В новом терминале примените миграции:
+# Отредактируйте .env (SECRET_KEY, Stripe, email)
+docker-compose up --build -d
 docker-compose exec backend python manage.py migrate
 
-(Опционально) Создайте суперпользователя:
-docker-compose exec backend python manage.py createsuperuser
+# (опционально) docker-compose exec backend python manage.py createsuperuser
 
-Документация API доступна по адресу:
-http://localhost:8000/swagger/
-Проверка работоспособности сервисов
-Backend: откройте http://localhost:8000/swagger/
-PostgreSQL: контейнер db должен быть в статусе Up
-Redis: контейнер redis должен быть в статусе Up
-Celery Worker: в логах celery_worker появятся сообщения при обновлении курса
-Celery Beat: в логах celery_beat ежедневно в 02:00 будет запись Deactivated X inactive users
+# LearnHub — Образовательная платформа на Django REST Framework
 
-Аутентификация
-Для получения JWT-токена отправьте POST-запрос на /api/token/ с email и паролем. Для обновления токена используйте /api/token/refresh/. Все остальные эндпоинты требуют заголовок Authorization: Bearer <access_token>.
-Доступные эндпоинты
-Основные эндпоинты:
-/api/token/ — получить JWT
-/api/token/refresh/ — обновить JWT
-/api/users/register/ — регистрация
-/api/users/profile/ — управление своим профилем
-/api/users/{id}/ — просмотр чужого профиля
-/api/courses/ — управление курсами
-/api/lessons/ — управление уроками
-/api/subscribe/ — переключить подписку на курс
-/api/courses/{id}/pay/ — инициировать оплату курса
-/api/payment/status/{session_id}/ — проверить статус платежа
-/api/users/payments/ — список своих платежей с фильтрацией
+REST API для онлайн-платформы, где пользователи могут создавать, проходить курсы и оплачивать обучение. Реализовано с использованием Django 5.2 + DRF, JWT-аутентификация, Stripe, Celery + Redis, Swagger UI, админка, тестирование.
 
-Фильтрация и сортировка платежей поддерживают параметры course, lesson, payment_method и ordering (например, ?ordering=-payment_date).
+## Критические настройки безопасности (обязательно перед продакшеном)
 
-Роли и права
-Обычные пользователи работают только со своими материалами. Модераторы (назначаются через админку в группу moderators) могут просматривать и редактировать любые курсы и уроки, но не могут создавать или удалять их.
+`DEBUG = False` — никогда не включайте в продакшене; иначе утечка данных и 400 Bad Request при пустом `ALLOWED_HOSTS`.  
+`SECRET_KEY` — длинный случайный ключ (≥50 символов), загружается из `.env` через `os.environ["SECRET_KEY"]`, никогда не коммитьте в репозиторий.  
+`ALLOWED_HOSTS = ['ВАШ ХОСТ]` — обязательна при `DEBUG=False`, иначе все запросы вернут 400.  
+`STATIC_ROOT = BASE_DIR / 'staticfiles'`, `STATIC_URL = '/static/'` — для сборки статики через `collectstatic`.  
+`MEDIA_ROOT = BASE_DIR / 'media'`, `MEDIA_URL = '/media/'` — для загрузок пользователей (всегда разделяйте от `STATIC_*`).  
+`SECURE_SSL_REDIRECT = True`, `SECURE_PROXY_SSL_HEADER = ("HTTP_X_FORWARDED_PROTO", "https")` — если за Nginx/Cloud Load Balancer.  
+`X_FRAME_OPTIONS = 'DENY'`, `SECURE_CONTENT_TYPE_NOSNIFF = True`, `CSRF_TRUSTED_ORIGINS = ['https://ВАШ ХОСТ']` — защита от clickjacking, MIME-sniffing и CSRF.  
+`SESSION_COOKIE_SECURE = True`, `SESSION_COOKIE_HTTPONLY = True` — безопасные куки сессий.  
+`LOGGING` — настройте отправку ошибок на email (`ADMINS`) или в Sentry; проверьте через `python manage.py check --deploy`.
 
-Технологии
-Проект использует современный стек технологий: Python 3.13, Django 5.2, Django REST Framework, djangorestframework-simplejwt, PostgreSQL, Redis, Celery с celery-beat, Stripe API, drf-yasg для генерации документации Swagger, Pillow для обработки изображений и coverage для анализа покрытия тестами.
+## Локальный запуск (Docker Compose)
+
+Требования: Docker + Docker Compose.  
+Клонируйте репозиторий: `git clone https://github.com/ваш-логин/LearnHubDRF.git && cd LearnHubDRF`.  
+Создайте `.env` из шаблона: `cp .env.example .env`, затем заполните: `DEBUG=True`, `SECRET_KEY=...`, `STRIPE_*`, `EMAIL_*`, `DB_*`.  
+Запустите: `docker compose up --build -d`, примените миграции: `docker compose exec backend python manage.py migrate`, при необходимости создайте суперпользователя: `docker compose exec backend python manage.py createsuperuser`.  
+Документация: http://localhost:8000/swagger/.
+
+## Настройка удалённого сервера (Yandex Cloud / AWS / др.)
+
+Требования: Ubuntu 22.04+, порты 22 (SSH), 80/443 (HTTP/HTTPS).  
+Установите Docker:  
+sudo apt update && sudo apt upgrade -y  
+sudo apt install -y docker.io  
+sudo usermod -aG docker $USER  
+sudo curl -L "https://github.com/docker/compose/releases/latest/download/docker-compose-$(uname -s)-$(uname -m)" -o /usr/local/bin/docker-compose && sudo chmod +x /usr/local/bin/docker-compose  
+newgrp docker  
+
+Клонируйте проект:  
+ssh ваш_пользователь@IP_адрес  
+git clone https://github.com/ваш-логин/LearnHubDRF.git ~/learnhub && cd ~/learnhub  
+cp .env.example .env  
+nano .env — задайте: DEBUG=False, ALLOWED_HOSTS=IP_адрес, SECRET_KEY=..., STRIPE_*, EMAIL_*, DB_* (пароли и ключи — только из `.env`, не в коде).
+
+Соберите и запустите:  
+docker compose up -d --build  
+docker compose exec backend python manage.py migrate  
+docker compose exec backend python manage.py collectstatic --noinput  
+
+## Настройка Nginx (обязательно для продакшена)
+
+Установите: `sudo apt install nginx -y`.  
+Создайте конфиг: `sudo nano /etc/nginx/sites-available/learnhub`, содержимое:
+server {
+    listen 80;
+    server_name 158.160.183.134;
+    location /static/ {
+        alias /home/star-dim/learnhub/staticfiles/;
+        expires 1y;
+        add_header Cache-Control "public, immutable";
+        add_header X-Content-Type-Options nosniff;
+        add_header X-Frame-Options DENY;
+    }
+    location /media/ {
+        alias /home/star-dim/learnhub/media/;
+        add_header X-Content-Type-Options nosniff;
+    }
+    location / {
+        proxy_pass http://127.0.0.1:8000;
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+        proxy_set_header Upgrade $http_upgrade;
+        proxy_set_header Connection "upgrade";
+    }
+}
+Активируйте:  
+sudo ln -s /etc/nginx/sites-available/learnhub /etc/nginx/sites-enabled/  
+sudo nginx -t && sudo systemctl reload nginx  
+
+Проверьте:  
+curl -I http://ВАШ_ХОСТ/api/courses/ → 200 OK или 401 Unauthorized  
+curl -I http://ВАШ_ХОСТ/static/drf-yasg/style.css → должен вернуть text/css, а не text/html  
+Swagger: http://ВАШ_ХОСТ/swagger/ — должен отображаться с полным стилем  
+docker compose ps — все сервисы в статусе Up  
+
+## Автоматический деплой через GitHub Actions
+
+В репозитории → Settings → Secrets and variables → Actions → добавьте:  
+HOST = IP_адрес_сервера  
+USERNAME = имя_пользователя  
+SSH_KEY = приватный ключ (содержимое id_ed25519, без пароля)  
+
+Файл `.github/workflows/deploy.yml`:  
+name: Deploy to Production  
+on: push  
+  branches: [ develop ]  
+jobs:  
+  deploy:  
+    runs-on: ubuntu-latest  
+    steps:  
+      - name: Deploy to server  
+        uses: appleboy/ssh-action@v1.0.3  
+        with:  
+          host: ${{ secrets.HOST }}  
+          username: ${{ secrets.USERNAME }}  
+          key: ${{ secrets.SSH_KEY }}  
+          script: |  
+            cd /home/$USER/learnhub  
+            git pull origin develop  
+            docker compose down  
+            docker compose up -d --build  
+
+> Примечание: `.env` должен быть на сервере и содержать актуальные настройки. Не используйте `git pull` по SSH, если не уверены в ключах — лучше `scp` для копирования папки напрямую.
+
+## Почему возникает ошибка «Cross-Origin-Opener-Policy header ignored»
+
+Это предупреждение браузера, а не ошибка сервера: браузер считает `http://IP:8000` «ненадёжным origin» (не HTTPS, не localhost), поэтому игнорирует заголовок `Cross-Origin-Opener-Policy`. Решение:  
+— В продакшене всегда используйте HTTPS (Nginx + Let’s Encrypt).  
+— В dev можно игнорировать — или запускайте через `localhost:8000`, где origin считается доверенным.
+
+## Почему статика не грузится (MIME type 'text/html' is not a supported stylesheet)
+
+Запрос к `/static/...` возвращает HTML (например, 404 Django), а не CSS/JS. Причины:  
+— `STATIC_ROOT` не задан или пустой,  
+— `collectstatic` не запускался,  
+— `STATIC_URL ≠ '/static/'`,  
+— в `urls.py` есть `static(...)` при `DEBUG=False` (это допустимо только для dev),  
+— Nginx не настроен на раздачу `/static/` (главная причина в продакшене).  
+
+Решение:  
+1. Убедитесь, что `STATIC_ROOT` существует и содержит файлы (`ls -la staticfiles/`).  
+2. Выполните `docker compose exec backend python manage.py collectstatic --noinput`.  
+3. В Nginx — `location /static/ { alias /путь/к/staticfiles/; }`, без `index`, без `try_files`.  
+4. Перезапустите: `sudo systemctl reload nginx && docker compose down && docker compose up -d`.
+
+## Дополнительно: Gunicorn вместо runserver
+
+В `docker-compose.yml` замените команду backend на:  
+command: gunicorn --bind 0.0.0.0:8000 config.wsgi:application  
+В `requirements.txt` добавьте: `gunicorn>=23.0.0`.  
+Убедитесь, что `config/wsgi.py` существует (он создаётся при `startproject`).  
+Это повышает производительность и безопасность — `runserver` запрещён в продакшене.
+
+Готово. Платформа полностью настроена, безопасна и готова к эксплуатации.
