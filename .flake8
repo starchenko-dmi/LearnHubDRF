@@ -1,3 +1,10 @@
 [flake8]
 max-line-length = 119
-exclude = .git, __pycache__, venv, .ven
+exclude =
+    .git,
+    __pycache__,
+    venv,
+    */migrations/*,
+    env/,
+    .venv
+extend-ignore = E203, W503
