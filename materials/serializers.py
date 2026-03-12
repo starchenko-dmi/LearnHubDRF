@@ -1,7 +1,8 @@
 from rest_framework import serializers
-from .models import Course, Lesson
 
+from .models import Course, Lesson
 from .validators import validate_youtube_url
+
 
 class CourseSerializer(serializers.ModelSerializer):
     lessons_count = serializers.SerializerMethodField()
@@ -10,11 +11,19 @@ class CourseSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = Course
-        fields = ['id', 'title', 'description', 'preview', 'lessons_count', 'lessons', 'is_subscribed']
-        read_only_fields = ['owner']
+        fields = [
+            "id",
+            "title",
+            "description",
+            "preview",
+            "lessons_count",
+            "lessons",
+            "is_subscribed",
+        ]
+        read_only_fields = ["owner"]
 
     def get_is_subscribed(self, obj):
-        user = self.context['request'].user
+        user = self.context["request"].user
         if user.is_authenticated:
             return obj.subscriptions.filter(user=user).exists()
         return False
@@ -34,15 +43,15 @@ class CourseSerializer(serializers.ModelSerializer):
 class LessonSerializer(serializers.ModelSerializer):
     class Meta:
         model = Lesson
-        fields = '__all__'
-        read_only_fields = ['owner']
+        fields = "__all__"
+        read_only_fields = ["owner"]
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         # Применяем валидатор к полю video_url
-        self.fields['video_url'].validators.append(validate_youtube_url)
+        self.fields["video_url"].validators.append(validate_youtube_url)
 
     def to_representation(self, instance):
         data = super().to_representation(instance)
-        data.pop('owner', None)
+        data.pop("owner", None)
         return data

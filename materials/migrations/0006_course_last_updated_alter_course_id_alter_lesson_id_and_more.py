@@ -6,28 +6,36 @@ from django.db import migrations, models
 class Migration(migrations.Migration):
 
     dependencies = [
-        ('materials', '0005_course_price'),
+        ("materials", "0005_course_price"),
     ]
 
     operations = [
         migrations.AddField(
-            model_name='course',
-            name='last_updated',
-            field=models.DateTimeField(blank=True, null=True, verbose_name='Последнее обновление'),
+            model_name="course",
+            name="last_updated",
+            field=models.DateTimeField(
+                blank=True, null=True, verbose_name="Последнее обновление"
+            ),
         ),
         migrations.AlterField(
-            model_name='course',
-            name='id',
-            field=models.AutoField(auto_created=True, primary_key=True, serialize=False, verbose_name='ID'),
+            model_name="course",
+            name="id",
+            field=models.AutoField(
+                auto_created=True, primary_key=True, serialize=False, verbose_name="ID"
+            ),
         ),
         migrations.AlterField(
-            model_name='lesson',
-            name='id',
-            field=models.AutoField(auto_created=True, primary_key=True, serialize=False, verbose_name='ID'),
+            model_name="lesson",
+            name="id",
+            field=models.AutoField(
+                auto_created=True, primary_key=True, serialize=False, verbose_name="ID"
+            ),
         ),
         migrations.AlterField(
-            model_name='subscription',
-            name='id',
-            field=models.AutoField(auto_created=True, primary_key=True, serialize=False, verbose_name='ID'),
+            model_name="subscription",
+            name="id",
+            field=models.AutoField(
+                auto_created=True, primary_key=True, serialize=False, verbose_name="ID"
+            ),
         ),
     ]

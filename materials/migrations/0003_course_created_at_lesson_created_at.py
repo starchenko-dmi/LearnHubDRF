@@ -7,18 +7,18 @@ from django.db import migrations, models
 class Migration(migrations.Migration):
 
     dependencies = [
-        ('materials', '0002_course_owner_lesson_owner'),
+        ("materials", "0002_course_owner_lesson_owner"),
     ]
 
     operations = [
         migrations.AddField(
-            model_name='course',
-            name='created_at',
+            model_name="course",
+            name="created_at",
             field=models.DateTimeField(default=django.utils.timezone.now),
         ),
         migrations.AddField(
-            model_name='lesson',
-            name='created_at',
+            model_name="lesson",
+            name="created_at",
             field=models.DateTimeField(default=django.utils.timezone.now),
         ),
     ]

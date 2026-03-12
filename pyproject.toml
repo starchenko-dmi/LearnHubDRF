@@ -25,6 +25,12 @@ django-environ = "^0.13.0"
 gunicorn = "^25.1.0"
 
 
+[tool.poetry.group.lint.dependencies]
+flake8 = "^7.3.0"
+mypy = "^1.19.1"
+black = "^26.3.0"
+isort = "^8.0.1"
+
 [build-system]
 requires = ["poetry-core"]
 build-backend = "poetry.core.masonry.api"

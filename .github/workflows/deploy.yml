@@ -29,6 +29,15 @@ jobs:
           DEBUG: 'True'
         run: python manage.py test
 
+      - name: Install lint dependencies
+        run: pip install flake8
+
+      - name: Run linting
+        run: flake8 .
+
+      - name: Test Docker build
+        run: docker compose build --no-cache backend
+
   deploy:
     needs: test
     if: success() && github.event_name == 'push'
